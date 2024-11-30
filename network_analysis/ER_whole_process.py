@@ -4,164 +4,151 @@ import numpy as np
 import os
 
 # 파일 경로 설정
-network_dir = "repeat_num/DongER/ER_random_network/attack_results"  # 네트워크 파일들이 있는 폴더 경로
-output_graph_dir = "network_analysis/ER/graph"  # 그래프를 저장할 폴더
-output_derivative_dir = "network_analysis/ER/Derivative_graph"  # 기울기를 저장할 폴더
-output_dd_derivative_dir = (
-    "network_analysis/ER/D_Derivative_graph"  # 두 번째 미분을 저장할 폴더
-)
-final_remaining_edges_file = "network_analysis/ER/final_remaining_edges.csv"  # 마지막 remaining edges를 저장할 파일
-
-# 폴더 생성 (존재하지 않으면)
+network_dir = "repeat_num/DongER_result/ER_random_network_results"  # 네트워크 파일들이 있는 폴더 경로
+output_graph_dir = "network_analysis/ER"  # 평균 그래프를 저장할 폴더
 os.makedirs(output_graph_dir, exist_ok=True)
-os.makedirs(output_derivative_dir, exist_ok=True)
-os.makedirs(output_dd_derivative_dir, exist_ok=True)
-
-# 마지막 remaining edges를 저장할 리스트
-final_remaining_edges = []
 
 # 네트워크 파일 리스트
-network_files = [f"{network_dir}/ER_network_{i}_paths.csv" for i in range(1, 11)]
+network_files = [
+    f"{network_dir}/ER_network_{i}_average_shortest_paths.csv" for i in range(1, 51)
+]
 
-# 각 네트워크에 대해 작업 시작
+# 데이터를 저장할 리스트
+all_avg_shortest_paths = []
+
+# 각 네트워크의 데이터를 수집
 for network_file in network_files:
-    # CSV 파일 읽기
     df = pd.read_csv(network_file)
 
-    # "Remaining Edges"와 "Average Shortest Path" 열 가져오기
-    remaining_edges = df["Remaining Edges"].values
-    avg_shortest_path = df["Average Shortest Path"].values
+    # print("Before removing the last row:")
+    # print(df.tail())  # 마지막 몇 개의 행 출력
 
-    # 1. 평균 최단 거리 그래프 그리기
-    plt.figure(figsize=(10, 6))
-    plt.plot(
-        remaining_edges[::-1],
-        avg_shortest_path,
-        marker="o",
-        color="b",
-        label="Average Shortest Path",
-    )
-    plt.xlabel("Remaining Edges")
-    plt.ylabel("Average Shortest Path")
-    plt.title(
-        f"Network {network_file.split('/')[-1]}: Average Shortest Path vs Remaining Edges"
-    )
-    plt.grid(True)
-    plt.legend()
+    df = df.iloc[:-1]
 
-    # 그래프 저장
-    graph_file_path = os.path.join(
-        output_graph_dir, f"{network_file.split('/')[-1].split('.')[0]}_graph.png"
-    )
-    plt.savefig(graph_file_path)
-    plt.close()
+    # 행의 길이가 2425 미만인 경우 다음 네트워크로 이동
+    if len(df) < 2425:  # 조건 추가
+        print(
+            f"Skipping network {network_file}: length {len(df)} < 2425"
+        )  # 스킵된 네트워크 출력
+        continue  # 다음 네트워크로 이동
 
-    # 2. 평균 최단 거리의 기울기 (미분) 계산
-    diff_avg_shortest_path = np.diff(avg_shortest_path)  # 첫 번째 미분
-    diff_remaining_edges = np.diff(remaining_edges)  # 첫 번째 미분
-    derivative = diff_avg_shortest_path / diff_remaining_edges  # 기울기
+    # print("\nAfter removing the last row:")
+    # print(df.tail())  # 다시 확인
 
-    # 첫 번째 미분 그래프 (Derivative)
-    sampling_step = 10  # 샘플링 간격 설정
-    sampled_edges = remaining_edges[:-1][
-        ::sampling_step
-    ]  # remaining_edges에서 10개 간격으로 샘플링
-    sampled_derivative = derivative[
-        ::sampling_step
-    ]  # derivative도 동일 간격으로 샘플링
+    all_avg_shortest_paths.append(df["Average Shortest Path"].values)
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(
-        sampled_edges[::-1],
-        sampled_derivative,
-        color="r",
-        label="Derivative of Average Shortest Path",
-    )
-    plt.xlabel("Remaining Edges")
-    plt.ylabel("Derivative of Average Shortest Path")
-    plt.title(
-        f"Network {network_file.split('/')[-1]}: Derivative of Average Shortest Path"
-    )
-    plt.ylim(-2, 2)  # y축 범위 제한
-    plt.grid(True)
-    plt.legend()
+# 최소 길이 확인
+min_length = min(map(len, all_avg_shortest_paths))  # 가장 짧은 네트워크 길이에 맞춤
+"""
+print("Minimum length across all networks:", min_length)
 
-    # 그래프 저장
-    derivative_graph_file_path = os.path.join(
-        output_derivative_dir,
-        f"{network_file.split('/')[-1].split('.')[0]}_derivative.png",
-    )
-    plt.savefig(derivative_graph_file_path)
-    plt.close()
+# 네트워크 길이 확인 및 카운트
+count_below_2425 = 0
+for i, arr in enumerate(all_avg_shortest_paths, start=1):
+    length = len(arr)
+    print(f"Network {i}: Length = {length}")
+    if length <= 2425:
+        count_below_2425 += 1
 
-    # 3. 두 번째 미분 (변화율) 계산
-    second_derivative = np.diff(derivative) / np.diff(
-        remaining_edges[:-1]
-    )  # 두 번째 미분
+# 2425 이하 길이 네트워크 개수 출력
+print(f"Number of networks with length ≤ 2425: {count_below_2425}")
 
-    # 두 번째 미분 그래프 (Second Derivative)
-    sampling_step = 10  # 샘플링 간격 설정
-    sampled_edges_2nd = remaining_edges[:-2][
-        ::sampling_step
-    ]  # remaining_edges에서 10개 간격으로 샘플링
-    sampled_second_derivative = second_derivative[
-        ::sampling_step
-    ]  # 두 번째 미분도 동일 간격으로 샘플링
-
-    plt.figure(figsize=(10, 6))
-    plt.plot(
-        sampled_edges_2nd[::-1],
-        sampled_second_derivative,
-        color="g",
-        label="Second Derivative of Average Shortest Path",
-    )
-    plt.xlabel("Remaining Edges")
-    plt.ylabel("Second Derivative of Average Shortest Path")
-    plt.title(
-        f"Network {network_file.split('/')[-1]}: Second Derivative of Average Shortest Path"
-    )
-    plt.ylim(-2, 2)  # y축 범위 제한
-    plt.grid(True)
-    plt.legend()
-
-    # 그래프 저장
-    dd_derivative_graph_file_path = os.path.join(
-        output_dd_derivative_dir,
-        f"{network_file.split('/')[-1].split('.')[0]}_dd_derivative.png",
-    )
-    plt.savefig(dd_derivative_graph_file_path)
-    plt.close()
-
-    # 4. 마지막 remaining edges 값 저장
-    final_remaining_edges.append(
-        {
-            "Network": network_file.split("/")[-1],
-            "Last Remaining Edges": remaining_edges[-1],
-        }
-    )
-
-# 마지막 remaining edges 값을 CSV로 저장
-final_remaining_edges_df = pd.DataFrame(final_remaining_edges)
-final_remaining_edges_df.to_csv(final_remaining_edges_file, index=False)
-
-print("remaining_edges:", remaining_edges)
-print("len(remaining_edges):", len(remaining_edges))
-print("len(derivative):", len(derivative))  # 첫 번째 미분 결과
-print("len(second_derivative):", len(second_derivative))  # 두 번째 미분 결과
-
-print("remaining_edges (x축 for Derivative):", remaining_edges[:-1])
-print("Derivative values (y축):", derivative)
-
-print("remaining_edges (x축 for Second Derivative):", remaining_edges[:-2])
-print("Second Derivative values (y축):", second_derivative)
-
-print("Derivative max:", np.max(derivative), "min:", np.min(derivative))
-print(
-    "Second Derivative max:",
-    np.max(second_derivative),
-    "min:",
-    np.min(second_derivative),
+"""
+edge_attack_number = np.arange(min_length)  # Edge Attack Number 생성
+avg_shortest_path_avg = np.mean(
+    [paths[:min_length] for paths in all_avg_shortest_paths], axis=0
 )
 
+# 1. 평균 그래프 생성
+max_avg = np.max(np.abs(avg_shortest_path_avg))
+ylim_avg = 1.2 * max_avg  # y축 범위 설정 (최대값 기준)
 
-print("File saved.")
+plt.figure(figsize=(10, 6))
+plt.plot(
+    edge_attack_number,
+    avg_shortest_path_avg,
+    marker="o",
+    color="b",
+    label="Average Shortest Path",
+)
+plt.xlabel("Edge Attack Number")
+plt.ylabel("Average Shortest Path")
+plt.title("Average Shortest Path vs Edge Attack Number")
+plt.ylim(800, ylim_avg)
+plt.xlim(0, 2426)  # x축 범위 설정
+plt.grid(True)
+plt.legend()
+plt.savefig(os.path.join(output_graph_dir, "average_shortest_path_graph.png"))
+plt.close()
+
+# 2. 첫 번째 미분 계산 및 그래프 생성
+diff_avg_shortest_path = np.diff(avg_shortest_path_avg)
+derivative_avg = diff_avg_shortest_path  # Remaining Edges가 아닌 Attack Number 기준
+
+# y축 범위 설정: 미분값의 최대 절댓값 기준
+max_derivative = np.max(np.abs(derivative_avg))
+ylim_derivative = 1.2 * max_derivative  # y축 범위 설정 (최대값 기준)
+
+# Linear Regression for First Derivative
+slope, intercept = np.polyfit(edge_attack_number[:-1], derivative_avg, 1)
+regression_line = slope * edge_attack_number[:-1] + intercept
+
+plt.figure(figsize=(10, 6))
+plt.plot(
+    edge_attack_number[:-1],
+    derivative_avg,
+    color="r",
+    label="Derivative of Average Shortest Path",
+)
+plt.plot(
+    edge_attack_number[:-1],
+    regression_line,
+    "b--",
+    label=f"Regression: y={slope:.2f}x+{intercept:.2f}",
+)
+plt.xlabel("Edge Attack Number")
+plt.ylabel("Derivative of Average Shortest Path")
+plt.title("Derivative of Average Shortest Path (Average)")
+plt.ylim(0, ylim_derivative)
+plt.xlim(0, 2426)  # x축 범위 설정
+plt.grid(True)
+plt.legend()
+plt.savefig(os.path.join(output_graph_dir, "average_derivative_graph.png"))
+plt.close()
+
+# 3. 두 번째 미분 계산 및 그래프 생성
+second_derivative_avg = np.diff(derivative_avg)
+
+# y축 범위 설정: 두 번째 미분값의 최대 절댓값 기준
+max_second_derivative = np.max(np.abs(second_derivative_avg))
+ylim_second_derivative = 1.2 * max_second_derivative  # y축 범위 설정 (최대값 기준)
+
+# Linear Regression for Second Derivative
+slope_2nd, intercept_2nd = np.polyfit(edge_attack_number[:-2], second_derivative_avg, 1)
+regression_line_2nd = slope_2nd * edge_attack_number[:-2] + intercept_2nd
+
+plt.figure(figsize=(10, 6))
+plt.plot(
+    edge_attack_number[:-2],
+    second_derivative_avg,
+    color="g",
+    label="Second Derivative of Average Shortest Path",
+)
+plt.plot(
+    edge_attack_number[:-2],
+    regression_line_2nd,
+    "b--",
+    label=f"Regression: y={slope_2nd:.2f}x+{intercept_2nd:.2f}",
+)
+
+plt.xlabel("Edge Attack Number")
+plt.ylabel("Second Derivative of Average Shortest Path")
+plt.title("Second Derivative of Average Shortest Path (Average)")
+plt.ylim(-ylim_second_derivative, ylim_second_derivative)
+plt.xlim(0, 2426)  # x축 범위 설정
+plt.grid(True)
+plt.legend()
+plt.savefig(os.path.join(output_graph_dir, "average_second_derivative_graph.png"))
+plt.close()
+
+print("ER all graphs are saved.")
