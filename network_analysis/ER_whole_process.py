@@ -67,7 +67,6 @@ plt.figure(figsize=(10, 6))
 plt.plot(
     edge_attack_number,
     avg_shortest_path_avg,
-    marker="o",
     color="b",
     label="Average Shortest Path",
 )
