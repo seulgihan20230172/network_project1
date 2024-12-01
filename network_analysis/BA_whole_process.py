@@ -20,45 +20,23 @@ all_avg_shortest_paths = []
 for network_file in network_files:
     df = pd.read_csv(network_file)
 
-    # print("Before removing the last row:")
-    # print(df.tail())  # 마지막 몇 개의 행 출력
-
-    df = df.iloc[:-1]
-
-    # 행의 길이가 2425 미만인 경우 다음 네트워크로 이동
-    if len(df) < 2425:  # 조건 추가
-        print(
-            f"Skipping network {network_file}: length {len(df)} < 2425"
-        )  # 스킵된 네트워크 출력
-        continue  # 다음 네트워크로 이동
-
-    # print("\nAfter removing the last row:")
-    # print(df.tail())  # 다시 확인
+    # `Average Shortest Path`에서 `inf` 값 확인
+    if np.isinf(df["Average Shortest Path"]).any():
+        print(f"Skipping {network_file} due to 'inf' values.")
+        continue  # 네트워크 건너뛰기
 
     all_avg_shortest_paths.append(df["Average Shortest Path"].values)
 
 # 최소 길이 확인
 min_length = min(map(len, all_avg_shortest_paths))  # 가장 짧은 네트워크 길이에 맞춤
-# print("Minimum length across all networks:", min_length)
+print("Minimum length across all networks:", min_length)
 
-"""
-# 네트워크 길이 확인 및 카운트
-count_below_2425 = 0
-for i, arr in enumerate(all_avg_shortest_paths, start=1):
-    length = len(arr)
-    print(f"Network {i}: Length = {length}")
-    if length <= 2425:
-        count_below_2425 += 1
-        
-
-# 2425 이하 길이 네트워크 개수 출력
-print(f"Number of BA networks with length ≤ 2425: {count_below_2425}")
-"""
-
-edge_attack_number = np.arange(min_length)  # Edge Attack Number 생성
+# Edge Attack Number 생성
+edge_attack_number = np.arange(min_length)
 avg_shortest_path_avg = np.mean(
     [paths[:min_length] for paths in all_avg_shortest_paths], axis=0
 )
+
 
 # 1. 평균 그래프 생성
 max_avg = np.max(np.abs(avg_shortest_path_avg))

@@ -22,16 +22,23 @@ er_network_files = [
 
 
 # 평균 그래프 계산 함수
-def calculate_average_graph(network_files):
+def calculate_average_graph(network_files, skip_inf=False):
     max_length = 0
     valid_networks = []  # 유효한 네트워크 파일 저장용 리스트
 
     for file in network_files:
         df = pd.read_csv(file)
-        df = df.iloc[:-1]  # 마지막 행 제거
 
-        # 행의 길이가 2425 미만인 경우 스킵
-        if len(df) < 2425:
+        # ER 네트워크 처리: 마지막 행 제거
+        df = df.iloc[:-1]
+
+        # BA 네트워크 처리: inf 값이 포함된 경우 스킵
+        if skip_inf and df.isin([np.inf]).any().any():
+            print(f"Skipping network {file}: contains inf values")
+            continue
+
+        # ER 네트워크 처리: 행의 길이가 2425 미만인 경우 스킵
+        if not skip_inf and len(df) < 2425:
             print(f"Skipping network {file}: length {len(df)} < 2425")
             continue
 
@@ -51,8 +58,13 @@ def calculate_average_graph(network_files):
 
 
 # BA와 ER 평균 그래프 데이터 계산
-ba_edge_attack_number, ba_avg_shortest_path = calculate_average_graph(ba_network_files)
-er_edge_attack_number, er_avg_shortest_path = calculate_average_graph(er_network_files)
+ba_edge_attack_number, ba_avg_shortest_path = calculate_average_graph(
+    ba_network_files, skip_inf=True  # BA 네트워크는 inf 값 스킵
+)
+er_edge_attack_number, er_avg_shortest_path = calculate_average_graph(
+    er_network_files, skip_inf=False  # ER 네트워크는 마지막 행 제거 후 처리
+)
+
 
 # 그래프 그리기
 plt.figure(figsize=(12, 8))
@@ -78,7 +90,7 @@ plt.plot(
 
 # BA와 ER의 y값 공통 범위 계산
 common_min = max(ba_avg_shortest_path.min(), er_avg_shortest_path.min())
-common_max = min(ba_avg_shortest_path[2426], er_avg_shortest_path[2426])
+common_max = min(ba_avg_shortest_path[-2], er_avg_shortest_path[-2])
 
 # 공통 범위의 80% 설정
 range_80_min = int(common_min + 0.1 * (common_max - common_min))
