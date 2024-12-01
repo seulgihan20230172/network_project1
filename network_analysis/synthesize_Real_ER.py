@@ -82,7 +82,6 @@ plt.figure(figsize=(12, 8))
 plt.plot(
     ba_edge_attack_number,
     ba_avg_shortest_path,
-    marker="o",
     color="red",
     label="Average of Real Networks",
 )
@@ -91,7 +90,6 @@ plt.plot(
 plt.plot(
     er_edge_attack_number,
     er_avg_shortest_path,
-    marker="o",
     color="green",
     label="Average of ER Networks",
 )
